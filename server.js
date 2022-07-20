@@ -239,13 +239,17 @@ async function roundCheck(room) {
     let outSocket;
     let round;
     let lastRoundFlag = false; // флаг последнего раунда
+    let onePlayerFlag = false; // флаг одного игрока в комнате
     rooms.forEach((block) => {
         // доступ к данной комнате
         if (block[0] == room) {
             round = block[2]; // сохранение текущего раунда
             // если в комнате только один или два игрока
-            if (block[1].length == 1 || block[1].length == 2) {
-                lastRoundFlag = true; // выставление флага
+            if (block[1].length == 1) {
+                onePlayerFlag = true; // выставление флага одного игрока в комнате
+                lastRoundFlag = true; // выставление флага последнего раунда
+            } else if (block[1].length == 2) {
+                lastRoundFlag = true; // выставление флага последнего раунда
             }
             block[1].forEach((player) => {
                 // если был ход игрока в момент окончания раунда => проиграл
@@ -278,8 +282,8 @@ async function roundCheck(room) {
         console.log(`game over in room ${room}`);
         let winnerName;
         let color;
-        // если последний раунд
-        if (lastRoundFlag) {
+        // если два игрока в комнате
+        if (!onePlayerFlag) {
             // победитель из массива остающихся
             winnerName = inArr[0][0]; 
             color = inArr[0][1];
