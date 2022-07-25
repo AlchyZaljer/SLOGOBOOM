@@ -7,15 +7,12 @@ const io = require('socket.io')(server); // библиотека для обме
 const path = require('path'); // утилиты для работы с путями к файлам и каталогам
 const utils = require('./js/utils');
 const syllables = require('./js/syllables');
-// удалить?
-// const mysql = require('mysql');
-// const { config } = require('process');
 
 app.set('view engine', 'ejs'); // задать EJS как механизм просмотра
 
 const PORT = 80;
 
-const MAX_PLAYERS = 5;
+const MAX_PLAYERS = 3;
 
 const ROUNDS_NUBER = MAX_PLAYERS - 1;
 
@@ -41,6 +38,7 @@ app.get('/', (req, res) => {
 let connections = []; // массив подключенных
 let waitings = []; // массив ожидающих
 let rooms = []; // массив комнат
+let stopFlag = false; // флаг остановки игри
 
 // получение подключения
 io.sockets.on('connection', (socket) => {
@@ -181,13 +179,16 @@ async function timer(buf, deadline, room) {
     // отправка события посекундной отрисовки таймера всей комнате
     io.in(room).emit('timer rendering', counter, deadline);
     counter -= 1;
-    // если текущее значение счетчика не меньше 0
-    if (counter >= 0) {
-        setTimeout(() => {
-            timer(counter, deadline, room);
-        }, 1000)
-    } else {
-        roundCheck(room); // запуск проверки раунда
+    // если опущен флаг остановки игри
+    if (!stopFlag) {
+        // если текущее значение счетчика не меньше 0
+        if (counter >= 0) {
+            setTimeout(() => {
+                timer(counter, deadline, room);
+            }, 1000)
+        } else {
+            roundCheck(room); // запуск проверки раунда
+        }
     }
 }
 
@@ -221,9 +222,14 @@ async function roomCheck(socket) {
                     // отправка уведомления о текущем ходе актуальному игроку
                     currentPlayerSocket.emit('current move');
                 }
-                //outSocket.leave(room); // удаление игрока из комнаты
                 outSocket.emit('removal from game'); // отправка события удаления из игры отключившимуся
                 block[1].splice(i, 1); // удаление игрока из массива подключенных к комнате
+                // если в комнате больше нет игроков
+                if (block[1].length == 0) {
+                    rooms.splice(rooms.indexOf(block), 1); // удаление комнаты из массива комнат
+                    stopFlag = true; // установка флага остановки игри
+                    break;
+                }
                 // отправка события выхода из комнаты игрока всей комнате
                 io.in(room).emit('farewell to roommates', username);
                 break;
